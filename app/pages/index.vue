@@ -5,7 +5,19 @@ import type { Pin, Profile } from '~/types'
 const user = useSupabaseUser()
 const supabase = useSupabaseClient()
 const { pins, loading, load, subscribe } = usePins()
-const { isMember, checked, load: loadMembership } = useMembership()
+const { isMember, checked, failure, load: loadMembership } = useMembership()
+
+const rechecking = ref(false)
+
+async function recheck() {
+  rechecking.value = true
+  await loadMembership(true)
+  if (isMember.value) {
+    if (!pins.value.length) await load()
+    if (!channel) channel = subscribe()
+  }
+  rechecking.value = false
+}
 
 const mapRef = useTemplateRef<{
   focus: (pin: Pin, options?: { zoom?: number }) => void
@@ -141,21 +153,50 @@ onKeyStroke('Escape', () => {
       class="grid h-full place-items-center px-6 text-center"
     >
       <div class="max-w-sm space-y-4">
-        <Icon name="lucide:lock" class="mx-auto size-8 text-ink-400" />
+        <Icon
+          :name="failure ? 'lucide:triangle-alert' : 'lucide:lock'"
+          class="mx-auto size-8"
+          :class="failure ? 'text-red-400' : 'text-ink-400'"
+        />
+
         <h1 class="text-lg font-medium text-ink-050">
-          This map is a small one
+          {{ failure ? 'Could not check your access' : 'This map is a small one' }}
         </h1>
-        <p class="text-sm leading-relaxed text-ink-400">
+
+        <p v-if="failure" class="text-sm leading-relaxed text-ink-400">
+          Signed in as <span class="text-ink-200">{{ user?.email }}</span>, but the membership
+          check itself failed — this is not a "you are not invited" message.
+        </p>
+        <p v-else class="text-sm leading-relaxed text-ink-400">
           You are signed in as <span class="text-ink-200">{{ user?.email }}</span>, but this address
           is not part of the circle yet. Ask Alex to add you and reload the page.
         </p>
-        <button
-          type="button"
-          class="focus-ring rounded-xl border border-white/10 px-4 py-2 text-sm text-ink-200 hover:bg-white/5"
-          @click="supabase.auth.signOut().then(() => navigateTo('/login'))"
+
+        <p
+          v-if="failure"
+          class="rounded-xl bg-red-500/10 px-3.5 py-2.5 text-left font-mono text-xs break-words text-red-300"
         >
-          Sign out
-        </button>
+          {{ failure }}
+        </p>
+
+        <div class="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            :disabled="rechecking"
+            class="focus-ring inline-flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm text-ink-200 hover:bg-white/5 disabled:opacity-50"
+            @click="recheck"
+          >
+            <Icon v-if="rechecking" name="lucide:loader-circle" class="size-4 animate-spin" />
+            Check again
+          </button>
+          <button
+            type="button"
+            class="focus-ring rounded-xl border border-white/10 px-4 py-2 text-sm text-ink-200 hover:bg-white/5"
+            @click="supabase.auth.signOut().then(() => navigateTo('/login'))"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
     </div>
 
