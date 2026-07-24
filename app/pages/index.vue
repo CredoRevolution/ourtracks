@@ -9,16 +9,6 @@ const { isMember, checked, failure, load: loadMembership } = useMembership()
 
 const rechecking = ref(false)
 
-async function recheck() {
-  rechecking.value = true
-  await loadMembership(true)
-  if (isMember.value) {
-    if (!pins.value.length) await load()
-    if (!channel) channel = subscribe()
-  }
-  rechecking.value = false
-}
-
 const mapRef = useTemplateRef<{
   focus: (pin: Pin, options?: { zoom?: number }) => void
   flyTo: (coords: { lat: number, lng: number }, zoom?: number) => void
@@ -27,20 +17,38 @@ const mapRef = useTemplateRef<{
 
 let channel: RealtimeChannel | null = null
 
-// The session is restored asynchronously, so react to the user appearing rather
-// than reading it once on mount — otherwise a fresh sign-in lands on the
-// waiting room even when the invite is there.
-onMounted(() => {
-  watch(user, async () => {
-    await loadMembership(true)
-    if (!isMember.value) return
+/** Check membership, and if we are in, fill the map and start listening. */
+async function hydrate() {
+  await loadMembership(true)
+  if (!isMember.value) return
 
-    if (!pins.value.length) await load()
-    if (!channel) channel = subscribe()
-  }, { immediate: true })
+  if (!pins.value.length) await load()
+  if (!channel) channel = subscribe()
+}
+
+async function recheck() {
+  rechecking.value = true
+  await hydrate()
+  rechecking.value = false
+}
+
+let stopAuthListener: (() => void) | null = null
+
+// onAuthStateChange fires once the browser client has finished restoring the
+// session — the moment our queries can actually carry a token — and again on
+// every sign-in and token refresh. That is the signal to (re)check, not the
+// user object, which is already there from the cookie.
+onMounted(() => {
+  const { data } = supabase.auth.onAuthStateChange(() => {
+    void hydrate()
+  })
+
+  stopAuthListener = () => data.subscription.unsubscribe()
+  void hydrate()
 })
 
 onBeforeUnmount(() => {
+  stopAuthListener?.()
   if (channel) supabase.removeChannel(channel)
 })
 

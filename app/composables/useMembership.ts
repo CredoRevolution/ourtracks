@@ -14,7 +14,6 @@ import type { Profile } from '~/types'
  */
 export function useMembership() {
   const supabase = useSupabaseClient()
-  const user = useSupabaseUser()
 
   const profile = useState<Profile | null>('membership:profile', () => null)
   const checked = useState<boolean>('membership:checked', () => false)
@@ -23,11 +22,17 @@ export function useMembership() {
   const isMember = computed(() => profile.value?.is_member === true)
 
   async function load(force = false) {
-    // No user yet does not mean "not a member" — right after an OAuth redirect
-    // the session takes a moment to restore. Staying unchecked keeps the
-    // interface on its loader instead of flashing the waiting room at someone
-    // who is, in fact, invited.
-    if (!user.value) {
+    // Wait for the *session*, not the user.
+    //
+    // The user object is rehydrated from the cookie while the page renders, so
+    // it shows up almost immediately. The access token the browser client signs
+    // requests with arrives a beat later. Query in that gap and it goes out
+    // anonymously: row level security quite correctly returns nothing, with no
+    // error, and the interface concludes the person is a stranger. getSession()
+    // resolves only once the client has its token, which closes that gap.
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session) {
       profile.value = null
       checked.value = false
       failure.value = null
@@ -39,7 +44,7 @@ export function useMembership() {
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', user.value.id)
+      .eq('id', session.user.id)
       .maybeSingle()
 
     if (error) {
