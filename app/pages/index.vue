@@ -9,6 +9,13 @@ const { isMember, checked, failure, load: loadMembership } = useMembership()
 
 const rechecking = ref(false)
 
+/** Set when the map cannot draw at all — the grey-rectangle case. */
+const mapFailure = ref<string | null>(null)
+
+function reloadPage() {
+  window.location.reload()
+}
+
 const mapRef = useTemplateRef<{
   focus: (pin: Pin, options?: { zoom?: number }) => void
   flyTo: (coords: { lat: number, lng: number }, zoom?: number) => void
@@ -218,6 +225,7 @@ onKeyStroke('Escape', () => {
           :draft-at="draftCoords"
           @select="openPin"
           @place="onPlace"
+          @failed="mapFailure = $event"
         />
         <template #fallback>
           <div class="grid h-full place-items-center">
@@ -234,6 +242,32 @@ onKeyStroke('Escape', () => {
         @toggle-author="toggleAuthor"
         @frame-all="mapRef?.frameAll()"
       />
+
+      <!-- The map itself could not draw -->
+      <div
+        v-if="mapFailure"
+        class="absolute inset-0 z-50 grid place-items-center bg-ink-950 px-6"
+      >
+        <div class="max-w-md space-y-4 text-center">
+          <Icon name="lucide:map-pin-off" class="mx-auto size-8 text-red-400" />
+          <h2 class="text-lg font-medium text-ink-050">
+            The map cannot be drawn here
+          </h2>
+          <p class="text-sm leading-relaxed text-ink-400">
+            Your memories are safe — this is the drawing surface failing, not the data.
+          </p>
+          <p class="rounded-xl bg-red-500/10 px-4 py-3 text-left text-xs leading-relaxed text-red-300">
+            {{ mapFailure }}
+          </p>
+          <button
+            type="button"
+            class="focus-ring rounded-xl border border-white/10 px-4 py-2 text-sm text-ink-200 hover:bg-white/5"
+            @click="reloadPage"
+          >
+            Reload
+          </button>
+        </div>
+      </div>
 
       <!-- Placing hint -->
       <Transition name="rise">

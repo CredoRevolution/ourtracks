@@ -24,6 +24,8 @@ const emit = defineEmits<{
   select: [pin: Pin]
   place: [coords: { lat: number, lng: number }]
   ready: []
+  /** The map could not be drawn at all. The message is meant for a human. */
+  failed: [message: string]
 }>()
 
 /**
@@ -41,15 +43,54 @@ let map: MapLibreMap | null = null
 let draftMarker: Marker | null = null
 const markers = new Map<string, Marker>()
 
+/**
+ * MapLibre 6 draws through WebGL2 and nothing else. A browser without it — most
+ * often because hardware acceleration is switched off, sometimes an old driver
+ * — gets a grey rectangle and an error nobody sees. Check first and say so.
+ */
+function webgl2Available(): boolean {
+  try {
+    return Boolean(document.createElement('canvas').getContext('webgl2'))
+  }
+  catch {
+    return false
+  }
+}
+
+let styleLoaded = false
+
 onMounted(() => {
   if (!container.value) return
 
-  map = new MapLibreMap({
-    container: container.value,
-    style: STYLE_URL,
-    center: HOME,
-    zoom: 11,
-    attributionControl: { compact: true },
+  if (!webgl2Available()) {
+    emit(
+      'failed',
+      'This browser cannot use WebGL2, which the map needs in order to draw. '
+      + 'It is usually switched off with hardware acceleration: Chrome → Settings → '
+      + 'System → "Use graphics acceleration when available", then restart Chrome.',
+    )
+    return
+  }
+
+  try {
+    map = new MapLibreMap({
+      container: container.value,
+      style: STYLE_URL,
+      center: HOME,
+      zoom: 11,
+      attributionControl: { compact: true },
+    })
+  }
+  catch (error) {
+    emit('failed', error instanceof Error ? error.message : 'The map failed to start.')
+    return
+  }
+
+  // Tile hiccups after the style is up are noise; anything before it is fatal.
+  map.on('error', (event) => {
+    const message = event.error?.message ?? 'Unknown map error'
+    console.error('[ourtracks] map error:', message)
+    if (!styleLoaded) emit('failed', message)
   })
 
   map.addControl(new NavigationControl({ showCompass: false }), 'bottom-right')
@@ -64,6 +105,10 @@ onMounted(() => {
   })
 
   map.on('load', () => {
+    styleLoaded = true
+    // A container that was briefly zero-sized leaves the canvas the wrong size
+    // for good unless it is told to measure itself again.
+    map?.resize()
     syncMarkers()
     frameAll({ animate: false })
     emit('ready')
