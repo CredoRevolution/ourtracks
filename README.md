@@ -1,11 +1,55 @@
 # ourtracks
 
+**Live: [ourtracks.gitignore.space](https://ourtracks.gitignore.space)**
+
 A shared map of places and the songs that belong to them. Drop a pin where
 something happened, attach the Spotify track that was playing, add photos and a
 few words, and it stays there.
 
 Built for a closed circle — you, your wife, a couple of friends. Anyone can sign
 in, but only invited addresses see anything.
+
+## Where things live
+
+| What | Where |
+| --- | --- |
+| Site | <https://ourtracks.gitignore.space> (Vercel, auto-deploys from `main`) |
+| Database, auth, files | Supabase project `ourtracks` (`chcbaljzzodlripqqbpl`, Frankfurt) |
+| Google sign-in | Google Cloud project `ourtracks` → Auth Platform |
+| GitHub sign-in | not wired up yet — see "Known gaps" |
+
+## Inviting someone
+
+Two steps, both required:
+
+```sql
+-- 1. Supabase SQL editor: let them past the door
+insert into public.circle_invites (email, note) values ('their@gmail.com', 'who they are');
+```
+
+2. Google Cloud → **Auth Platform → Audience → Test users → Add users**: the same
+   address. While the consent screen is in *Testing*, Google turns away anyone
+   who is not on that list. The cap is 100 people, which is 96 more than we need.
+
+If they signed in before being invited, flip the flag once by hand:
+
+```sql
+update public.profiles set is_member = true where email = 'their@gmail.com';
+```
+
+## Known gaps
+
+- **GitHub sign-in is a dead button.** The OAuth app exists
+  (`github.com/settings/applications/3751038`) but issuing its client secret
+  needs a phone confirmation, so Supabase has no credentials for it yet. Until
+  then the button will error. Google works.
+- **A Yandex address is not a Google account.** `unikorn.crazy@yandex.by` is on
+  both allowlists, but Google sign-in only works if that address is registered
+  as a Google account. If it is not, the simplest fix is inviting her Gmail
+  instead, or finishing GitHub sign-in, or adding e-mail magic links.
+- **The old Google client secret** (the one created with the client, ending
+  `sWQp`) is unused and unreadable. Delete it in Google Cloud → Clients →
+  ourtracks web once you have confirmed sign-in works.
 
 ## Stack
 
@@ -20,7 +64,10 @@ in, but only invited addresses see anything.
 
 No paid service, no API key, no card on file. The only account you need is Supabase.
 
-## Setup
+## Setup from scratch
+
+Already done for the live instance — kept here for a rebuild, or for a second
+copy of the project.
 
 ### 1. Create the Supabase project
 
