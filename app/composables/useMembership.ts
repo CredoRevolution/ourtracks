@@ -18,9 +18,13 @@ export function useMembership() {
   const isMember = computed(() => profile.value?.is_member === true)
 
   async function load(force = false) {
+    // No user yet does not mean "not a member" — right after an OAuth redirect
+    // the session takes a moment to restore. Staying unchecked keeps the
+    // interface on its loader instead of flashing the waiting room at someone
+    // who is, in fact, invited.
     if (!user.value) {
       profile.value = null
-      checked.value = true
+      checked.value = false
       return
     }
 

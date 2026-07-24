@@ -15,12 +15,17 @@ const mapRef = useTemplateRef<{
 
 let channel: RealtimeChannel | null = null
 
-onMounted(async () => {
-  await loadMembership()
-  if (!isMember.value) return
+// The session is restored asynchronously, so react to the user appearing rather
+// than reading it once on mount — otherwise a fresh sign-in lands on the
+// waiting room even when the invite is there.
+onMounted(() => {
+  watch(user, async () => {
+    await loadMembership(true)
+    if (!isMember.value) return
 
-  await load()
-  channel = subscribe()
+    if (!pins.value.length) await load()
+    if (!channel) channel = subscribe()
+  }, { immediate: true })
 })
 
 onBeforeUnmount(() => {
