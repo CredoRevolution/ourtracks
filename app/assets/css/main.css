@@ -1,0 +1,126 @@
+@import 'tailwindcss';
+
+/* ---------------------------------------------------------------------------
+   Design tokens.
+   The map is the product, so the interface is a thin layer of smoked glass
+   floating on top of it: near-black surfaces, one warm accent, nothing else.
+--------------------------------------------------------------------------- */
+@theme {
+  --color-ink-950: #08090b;
+  --color-ink-900: #0b0d10;
+  --color-ink-850: #101317;
+  --color-ink-800: #161a1f;
+  --color-ink-700: #22272e;
+  --color-ink-600: #333b45;
+  --color-ink-400: #7b8794;
+  --color-ink-200: #c3cad3;
+  --color-ink-050: #eef1f5;
+
+  --color-amber-glow: #f0b429;
+  --color-amber-deep: #b07a10;
+
+  --font-sans:
+    'Inter var', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+
+  --radius-panel: 1.25rem;
+
+  --animate-rise: rise 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-fade: fade 0.2s ease-out;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* --------------------------------------------------------------------------- */
+
+html,
+body,
+#__nuxt {
+  height: 100%;
+}
+
+body {
+  background: var(--color-ink-950);
+  color: var(--color-ink-050);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+::selection {
+  background: color-mix(in oklab, var(--color-amber-glow) 40%, transparent);
+}
+
+/* Thin scrollbars inside panels, invisible until you need them */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-600) transparent;
+}
+
+/* ---------------------------------------------------------------------------
+   Reusable primitives. Small enough to keep here instead of inventing a
+   component for every button.
+--------------------------------------------------------------------------- */
+@utility glass {
+  background: color-mix(in oklab, var(--color-ink-900) 82%, transparent);
+  backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid color-mix(in oklab, white 8%, transparent);
+}
+
+@utility focus-ring {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+
+  &:focus-visible {
+    outline-color: var(--color-amber-glow);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   MapLibre overrides — strip the default chrome down to something quiet.
+--------------------------------------------------------------------------- */
+.maplibregl-ctrl-attrib {
+  background: rgb(8 9 11 / 0.6) !important;
+  color: var(--color-ink-400) !important;
+  font-size: 10px !important;
+}
+
+.maplibregl-ctrl-attrib a {
+  color: var(--color-ink-200) !important;
+}
+
+.maplibregl-ctrl-group {
+  background: color-mix(in oklab, var(--color-ink-900) 85%, transparent) !important;
+  border: 1px solid rgb(255 255 255 / 0.08) !important;
+  backdrop-filter: blur(16px);
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid rgb(255 255 255 / 0.08) !important;
+}
+
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(0.85);
+}
+
+.maplibregl-canvas:focus {
+  outline: none;
+}
