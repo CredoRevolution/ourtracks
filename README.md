@@ -43,10 +43,9 @@ update public.profiles set is_member = true where email = 'their@gmail.com';
   (`github.com/settings/applications/3751038`) but issuing its client secret
   needs a phone confirmation, so Supabase has no credentials for it yet. Until
   then the button will error. Google works.
-- **A Yandex address is not a Google account.** `unikorn.crazy@yandex.by` is on
-  both allowlists, but Google sign-in only works if that address is registered
-  as a Google account. If it is not, the simplest fix is inviting her Gmail
-  instead, or finishing GitHub sign-in, or adding e-mail magic links.
+- **Not verified end to end.** Sign-in reaches the map, but creating a pin,
+  uploading a photo and live updates between two people have not been exercised
+  against production yet.
 - **The old Google client secret** (the one created with the client, ending
   `sWQp`) is unused and unreadable. Delete it in Google Cloud → Clients →
   ourtracks web once you have confirmed sign-in works.
