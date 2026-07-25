@@ -58,6 +58,13 @@ function webgl2Available(): boolean {
 }
 
 let styleLoaded = false
+let watchdog: number | null = null
+
+function onVisibilityChange() {
+  if (document.visibilityState !== 'visible' || !map) return
+  map.resize()
+  map.triggerRepaint()
+}
 
 onMounted(() => {
   if (!container.value) return
@@ -104,8 +111,25 @@ onMounted(() => {
     emit('place', { lat: event.lngLat.lat, lng: event.lngLat.lng })
   })
 
+  // A tab that is not in front gets no animation frames, and MapLibre draws on
+  // animation frames. Open the page in a background tab and the canvas can sit
+  // there grey. Nudge it awake when the tab comes forward.
+  document.addEventListener('visibilitychange', onVisibilityChange)
+
+  // If the style has not come up in a reasonable time while the page is
+  // actually on screen, say so instead of leaving a grey rectangle.
+  watchdog = window.setTimeout(() => {
+    if (styleLoaded || document.visibilityState !== 'visible') return
+    emit(
+      'failed',
+      'The map did not finish loading. Its tiles come from basemaps.cartocdn.com — '
+      + 'if that host is unreachable from your network, nothing will draw.',
+    )
+  }, 12000)
+
   map.on('load', () => {
     styleLoaded = true
+    if (watchdog) window.clearTimeout(watchdog)
     // A container that was briefly zero-sized leaves the canvas the wrong size
     // for good unless it is told to measure itself again.
     map?.resize()
@@ -116,6 +140,8 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  document.removeEventListener('visibilitychange', onVisibilityChange)
+  if (watchdog) window.clearTimeout(watchdog)
   markers.forEach(marker => marker.remove())
   markers.clear()
   draftMarker?.remove()
