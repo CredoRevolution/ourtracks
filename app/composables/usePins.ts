@@ -17,7 +17,6 @@ const PIN_SELECT = `
 
 export function usePins() {
   const supabase = useSupabaseClient()
-  const user = useSupabaseUser()
   const { signPaths, removeStoredPhotos } = usePhotos()
 
   const pins = useState<Pin[]>('pins', () => [])
@@ -27,6 +26,8 @@ export function usePins() {
   async function load() {
     loading.value = true
     error.value = null
+
+    await supabase.auth.getSession()
 
     const { data, error: queryError } = await supabase
       .from('pins')
@@ -44,11 +45,21 @@ export function usePins() {
   }
 
   async function create(draft: PinDraft): Promise<Pin | null> {
-    if (!user.value) return null
+    // Ask for the session rather than the user object. Both name the same
+    // person, but awaiting the session also guarantees the client has its
+    // access token attached — without it the insert goes out anonymously and
+    // row level security refuses it, which reads as a permissions bug rather
+    // than the timing one it is.
+    const { data: { session } } = await supabase.auth.getSession()
+
+    if (!session) {
+      error.value = 'You are not signed in any more. Reload the page and sign in again.'
+      return null
+    }
 
     const { data, error: insertError } = await supabase
       .from('pins')
-      .insert({ ...(await toRow(draft)), author_id: user.value.id })
+      .insert({ ...(await toRow(draft)), author_id: session.user.id })
       .select(PIN_SELECT)
       .single()
 
@@ -63,6 +74,9 @@ export function usePins() {
   }
 
   async function update(id: string, draft: PinDraft): Promise<Pin | null> {
+    // Same reason as in create(): make sure the token is on the request.
+    await supabase.auth.getSession()
+
     const { data, error: updateError } = await supabase
       .from('pins')
       .update(await toRow(draft))
@@ -84,6 +98,8 @@ export function usePins() {
     // Deleting the pin cascades to its photo rows, but Storage keeps the files
     // themselves until we say otherwise — so grab the paths before they vanish.
     const target = pins.value.find(pin => pin.id === id)
+
+    await supabase.auth.getSession()
 
     const { error: deleteError } = await supabase.from('pins').delete().eq('id', id)
 

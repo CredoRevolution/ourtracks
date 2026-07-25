@@ -11,7 +11,6 @@ const SIGN_TTL_SECONDS = 3600
 
 export function usePhotos() {
   const supabase = useSupabaseClient()
-  const user = useSupabaseUser()
 
   /**
    * Trade storage paths for temporary links, in a single request.
@@ -42,13 +41,19 @@ export function usePhotos() {
    * losing one photo is better than losing the four that worked.
    */
   async function upload(pinId: string, files: File[], startOrder = 0): Promise<PinPhoto[]> {
-    if (!user.value || !files.length) return []
+    if (!files.length) return []
+
+    // Storage and pin_photos are both behind row level security, so make sure
+    // the client is carrying its token before either is touched.
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return []
 
     const saved: PinPhoto[] = []
 
     for (const [index, file] of files.entries()) {
       const prepared = await downscale(file)
-      const path = `${user.value.id}/${pinId}/${crypto.randomUUID()}.${extensionFor(prepared.type)}`
+      // The storage policy insists the first folder is the uploader's own id.
+      const path = `${session.user.id}/${pinId}/${crypto.randomUUID()}.${extensionFor(prepared.type)}`
 
       const { error: uploadError } = await supabase.storage
         .from(BUCKET)

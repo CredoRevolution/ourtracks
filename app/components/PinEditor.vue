@@ -15,7 +15,7 @@ const emit = defineEmits<{
   moveTo: [coords: { lat: number, lng: number }]
 }>()
 
-const { create, update, refresh } = usePins()
+const { create, update, refresh, error: pinsError } = usePins()
 const { upload, removePhoto } = usePhotos()
 
 const isEditing = computed(() => Boolean(props.pin))
@@ -181,7 +181,9 @@ async function save() {
 
   if (!pin) {
     saving.value = false
-    problem.value = 'Could not save this one. Check the connection and try again.'
+    // Show what the database actually said. A generic "try again" hides the one
+    // piece of information that would explain the failure.
+    problem.value = pinsError.value ?? 'Could not save this one. Check the connection and try again.'
     return
   }
 
