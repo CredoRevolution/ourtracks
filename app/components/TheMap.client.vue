@@ -60,10 +60,78 @@ function webgl2Available(): boolean {
 let styleLoaded = false
 let watchdog: number | null = null
 
+/**
+ * The watchdog measures patience, and patience only counts while the page is
+ * on screen. A tab sitting in the background gets no animation frames, so it
+ * makes no progress and must not be accused of being broken for it. Every time
+ * the page comes forward, the clock starts over.
+ */
+function armWatchdog() {
+  if (styleLoaded) return
+  if (watchdog) window.clearTimeout(watchdog)
+  if (document.visibilityState !== 'visible') return
+
+  watchdog = window.setTimeout(async () => {
+    if (styleLoaded || document.visibilityState !== 'visible') return
+    emit('failed', await diagnose())
+  }, 12000)
+}
+
 function onVisibilityChange() {
   if (document.visibilityState !== 'visible' || !map) return
   map.resize()
   map.triggerRepaint()
+  armWatchdog()
+}
+
+/**
+ * Work out why nothing drew, instead of guessing on the user's behalf. Two
+ * questions settle it: can this browser reach the tile servers, and is it being
+ * given animation frames to draw in.
+ */
+async function diagnose(): Promise<string> {
+  const probe = async (url: string) => {
+    const abort = new AbortController()
+    const timer = window.setTimeout(() => abort.abort(), 5000)
+    try {
+      const response = await fetch(url, { signal: abort.signal })
+      return String(response.status)
+    }
+    catch (error) {
+      return error instanceof Error && error.name === 'AbortError' ? 'no answer' : 'blocked'
+    }
+    finally {
+      window.clearTimeout(timer)
+    }
+  }
+
+  const frames = await new Promise<number>((resolve) => {
+    let count = 0
+    const started = performance.now()
+    const tick = () => {
+      count++
+      if (performance.now() - started < 1000) requestAnimationFrame(tick)
+      else resolve(count)
+    }
+    requestAnimationFrame(tick)
+    window.setTimeout(() => resolve(count), 1600)
+  })
+
+  const [style, tiles] = await Promise.all([
+    probe(STYLE_URL),
+    probe('https://tiles.basemaps.cartocdn.com/vector/carto.streets/v1/tiles.json'),
+  ])
+
+  return [
+    `style.json → ${style}`,
+    `tiles.json → ${tiles}`,
+    `animation frames per second → ${frames}`,
+    frames < 10
+      ? 'Almost no frames: the browser is not letting this page draw. Bring the window to the front, or turn on Chrome → Settings → System → graphics acceleration.'
+      : (style === '200' && tiles === '200')
+          ? 'Both tile servers answered and the page is drawing, so this is something else — send this text over.'
+          : 'A tile server did not answer, so there is nothing to draw with.',
+  ].join('\n')
 }
 
 onMounted(() => {
@@ -115,17 +183,7 @@ onMounted(() => {
   // animation frames. Open the page in a background tab and the canvas can sit
   // there grey. Nudge it awake when the tab comes forward.
   document.addEventListener('visibilitychange', onVisibilityChange)
-
-  // If the style has not come up in a reasonable time while the page is
-  // actually on screen, say so instead of leaving a grey rectangle.
-  watchdog = window.setTimeout(() => {
-    if (styleLoaded || document.visibilityState !== 'visible') return
-    emit(
-      'failed',
-      'The map did not finish loading. Its tiles come from basemaps.cartocdn.com — '
-      + 'if that host is unreachable from your network, nothing will draw.',
-    )
-  }, 12000)
+  armWatchdog()
 
   map.on('load', () => {
     styleLoaded = true

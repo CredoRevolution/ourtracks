@@ -226,6 +226,7 @@ onKeyStroke('Escape', () => {
           @select="openPin"
           @place="onPlace"
           @failed="mapFailure = $event"
+          @ready="mapFailure = null"
         />
         <template #fallback>
           <div class="grid h-full place-items-center">
@@ -256,9 +257,9 @@ onKeyStroke('Escape', () => {
           <p class="text-sm leading-relaxed text-ink-400">
             Your memories are safe — this is the drawing surface failing, not the data.
           </p>
-          <p class="rounded-xl bg-red-500/10 px-4 py-3 text-left text-xs leading-relaxed text-red-300">
-            {{ mapFailure }}
-          </p>
+          <p
+            class="rounded-xl bg-red-500/10 px-4 py-3 text-left font-mono text-xs leading-relaxed whitespace-pre-line text-red-300"
+          >{{ mapFailure }}</p>
           <button
             type="button"
             class="focus-ring rounded-xl border border-white/10 px-4 py-2 text-sm text-ink-200 hover:bg-white/5"
