@@ -7,6 +7,7 @@ import {
   Map as MapLibreMap,
   Marker,
   NavigationControl,
+  setWorkerUrl,
 } from 'maplibre-gl'
 import type { Pin } from '~/types'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -36,6 +37,17 @@ const STYLE_URL = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.j
 
 /** Brest — the obvious place to open on, and a decent default for everyone else. */
 const HOME: LngLatLike = [23.7341, 52.0976]
+
+/**
+ * MapLibre guesses its worker lives next to its own module file, which stops
+ * being true the moment a bundler rolls that module into a hashed chunk. The
+ * guess 404s, the worker never starts, and since vector tiles are parsed in
+ * that worker the map hangs on a grey canvas without raising an error.
+ *
+ * scripts/sync-maplibre-worker.mjs copies the worker into public/maplibre on
+ * every build; this is us telling MapLibre where it went.
+ */
+setWorkerUrl('/maplibre/maplibre-gl-worker.mjs')
 
 const container = useTemplateRef<HTMLDivElement>('container')
 

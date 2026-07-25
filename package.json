@@ -3,11 +3,15 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "sync:maplibre": "node scripts/sync-maplibre-worker.mjs",
+    "predev": "npm run sync:maplibre",
     "dev": "nuxt dev",
+    "prebuild": "npm run sync:maplibre",
     "build": "nuxt build",
+    "pregenerate": "npm run sync:maplibre",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
-    "postinstall": "nuxt prepare"
+    "postinstall": "nuxt prepare && npm run sync:maplibre"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.111",

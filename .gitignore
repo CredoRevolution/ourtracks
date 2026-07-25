@@ -15,6 +15,9 @@ node_modules
 .env.*
 !.env.example
 
+# Copied out of node_modules on every build by scripts/sync-maplibre-worker.mjs
+public/maplibre
+
 # Editors / OS
 .idea
 .vscode
